@@ -1,0 +1,8 @@
+0 "Target" 11:5, 12:5, 13:5, 14:5
+11 "Criteria_1" 21:1, 22:2, 23:3
+12 "Criteria_2" 21:1, 22:2, 23:3
+13 "Criteria_3" 21:1, 22:2, 23:3
+14 "Criteria_4" 21:1, 22:2, 23:3
+21 "Alternative_1"
+22 "Alternative_2"
+23 "Alternative_3"

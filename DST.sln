@@ -1,0 +1,26 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 11.00
+# Visual Studio 2010
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "NetworkPlanning", "NetworkPlanning\NetworkPlanning.vcxproj", "{08E61A07-5E4B-42C2-886C-FADE56C722E7}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "MHA", "MHA\MHA.vcxproj", "{E846A372-D8FA-494C-BF67-F50C748F3B59}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Win32 = Debug|Win32
+		Release|Win32 = Release|Win32
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{08E61A07-5E4B-42C2-886C-FADE56C722E7}.Debug|Win32.ActiveCfg = Debug|Win32
+		{08E61A07-5E4B-42C2-886C-FADE56C722E7}.Debug|Win32.Build.0 = Debug|Win32
+		{08E61A07-5E4B-42C2-886C-FADE56C722E7}.Release|Win32.ActiveCfg = Release|Win32
+		{08E61A07-5E4B-42C2-886C-FADE56C722E7}.Release|Win32.Build.0 = Release|Win32
+		{E846A372-D8FA-494C-BF67-F50C748F3B59}.Debug|Win32.ActiveCfg = Debug|Win32
+		{E846A372-D8FA-494C-BF67-F50C748F3B59}.Debug|Win32.Build.0 = Debug|Win32
+		{E846A372-D8FA-494C-BF67-F50C748F3B59}.Release|Win32.ActiveCfg = Release|Win32
+		{E846A372-D8FA-494C-BF67-F50C748F3B59}.Release|Win32.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

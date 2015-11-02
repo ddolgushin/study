@@ -9,19 +9,19 @@ bool compareNodes(Node* l, Node* r) {
 	return l->priority > r->priority;
 };
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
 	setlocale(LC_ALL, "Russian");
 
 	try {
 		MhaModel mdl(
-			"0 \"Цель\" 11:5, 12:5, 13:5, 14:5\n"
-			"11 \"Критерий_1\" 21:1, 22:2, 23:3\n"
-			"12 \"Критерий_2\" 21:1, 22:2, 23:3\n"
-			"13 \"Критерий_3\" 21:1, 22:2, 23:3\n"
-			"14 \"Критерий_4\" 21:1, 22:2, 23:3\n"
-			"21 \"Альтернатива_1\"\n"
-			"22 \"Альтернатива_2\"\n"
-			"23 \"Альтернатива_3\"", true, false);
+			"0 \"Р¦РµР»СЊ\" 11:5, 12:5, 13:5, 14:5\n"
+			"11 \"РљСЂРёС‚РµСЂРёР№_1\" 21:1, 22:2, 23:3\n"
+			"12 \"РљСЂРёС‚РµСЂРёР№_2\" 21:1, 22:2, 23:3\n"
+			"13 \"РљСЂРёС‚РµСЂРёР№_3\" 21:1, 22:2, 23:3\n"
+			"14 \"РљСЂРёС‚РµСЂРёР№_4\" 21:1, 22:2, 23:3\n"
+			"21 \"РђР»СЊС‚РµСЂРЅР°С‚РёРІР°_1\"\n"
+			"22 \"РђР»СЊС‚РµСЂРЅР°С‚РёРІР°_2\"\n"
+			"23 \"РђР»СЊС‚РµСЂРЅР°С‚РёРІР°_3\"", true, false);
 
 		vector<Node*> results = mdl.getResults();
 		int size = results.size();
@@ -32,10 +32,10 @@ int main(int argc, char **argv) {
 		for (int i = 0; i < size; i++) {
 			Node* n = results.at(i);
 
-			cout << n->priority << " для альтернативы " << n->name << endl;
+			cout << n->priority << " РґР»СЏ Р°Р»СЊС‚РµСЂРЅР°С‚РёРІС‹ " << n->name << endl;
 		}
 	}
-	catch (MhaModel::Exception ex){
+	catch (MhaModel::Exception ex) {
 		cerr << ex.getMessage();
 	}
 

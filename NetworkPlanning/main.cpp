@@ -9,19 +9,18 @@ int main(int argc, char **argv) {
 	setlocale(LC_ALL, "Russian");
 
 	if (argc < 2)
-		cerr << "Äëÿ çàïóñêà ïðîãðàììû íóæíî óêàçàòü íàçâàíèå ôàéëà äàííûõ.\n";
+		cerr << "Ð”Ð»Ñ Ð·Ð°Ð¿ÑƒÑÐºÐ° Ð¿Ñ€Ð¾Ð³Ñ€Ð°Ð¼Ð¼Ñ‹ Ð½ÑƒÐ¶Ð½Ð¾ ÑƒÐºÐ°Ð·Ð°Ñ‚ÑŒ Ð½Ð°Ð·Ð²Ð°Ð½Ð¸Ðµ Ñ„Ð°Ð¹Ð»Ð° Ð´Ð°Ð½Ð½Ñ‹Ñ….\n";
 	else {
 		try {
-			np = new NetworkPlan(argv[1]);
-
-			np->calculate();
+			//np = new NetworkPlan(argv[1]);
+			np = new NetworkPlan("0 (1,4) (2,7) (3,2)\n1 (5,2)\n2 (5,1) (4,5)\n3 (7,3)\n4 (8,1) (6,2)\n5 (7,3)\n6 (8,12)\n7 (8,4)\n8", false);
 
 			paths = np->getCriticalPaths();
 
 			int size = paths->size();
 
-			cout << "Êðèòè÷åñêîå âðåìÿ: " << np->getTCritical() << endl;
-			cout << "Êðèòè÷åñêèå ïóòè:" << endl;
+			cout << "ÐšÑ€Ð¸Ñ‚Ð¸Ñ‡ÐµÑÐºÐ¾Ðµ Ð²Ñ€ÐµÐ¼Ñ: " << np->getTCritical() << endl;
+			cout << "ÐšÑ€Ð¸Ñ‚Ð¸Ñ‡ÐµÑÐºÐ¸Ðµ Ð¿ÑƒÑ‚Ð¸:" << endl;
 
 			for (int i = 0; i < size; i++) {
 				int size2 = paths->at(i)->size();

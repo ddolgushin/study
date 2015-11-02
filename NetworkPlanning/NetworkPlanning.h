@@ -8,9 +8,11 @@ using namespace std;
 
 class NetworkNode;
 
-// Класс, представляющий связь-работу. Включает длину (продолжительность),
-// ссылки на связываемые узлы (вершины, состояния) и вспомогательную
-// логическую переменную, используемую для распределения узлов по слоям.
+/**
+ * РљР»Р°СЃСЃ, РїСЂРµРґСЃС‚Р°РІР»СЏСЋС‰РёР№ СЃРІСЏР·СЊ-СЂР°Р±РѕС‚Сѓ. Р’РєР»СЋС‡Р°РµС‚ РґР»РёРЅСѓ (РїСЂРѕРґРѕР»Р¶РёС‚РµР»СЊРЅРѕСЃС‚СЊ),
+ * СЃСЃС‹Р»РєРё РЅР° СЃРІСЏР·С‹РІР°РµРјС‹Рµ СѓР·Р»С‹ (РІРµСЂС€РёРЅС‹, СЃРѕСЃС‚РѕСЏРЅРёСЏ) Рё РІСЃРїРѕРјРѕРіР°С‚РµР»СЊРЅСѓСЋ
+ * Р»РѕРіРёС‡РµСЃРєСѓСЋ РїРµСЂРµРјРµРЅРЅСѓСЋ, РёСЃРїРѕР»СЊР·СѓРµРјСѓСЋ РґР»СЏ СЂР°СЃРїСЂРµРґРµР»РµРЅРёСЏ СѓР·Р»РѕРІ РїРѕ СЃР»РѕСЏРј.
+ */
 class Link {
 public:
 	double length;
@@ -26,8 +28,10 @@ public:
 	}
 };
 
-// Класс для представления состояния на сетевом графике. Содержит
-// номер вершины, раннее и позднее время, а также резерв.
+/**
+ * РљР»Р°СЃСЃ РґР»СЏ РїСЂРµРґСЃС‚Р°РІР»РµРЅРёСЏ СЃРѕСЃС‚РѕСЏРЅРёСЏ РЅР° СЃРµС‚РµРІРѕРј РіСЂР°С„РёРєРµ. РЎРѕРґРµСЂР¶РёС‚
+ * РЅРѕРјРµСЂ РІРµСЂС€РёРЅС‹, СЂР°РЅРЅРµРµ Рё РїРѕР·РґРЅРµРµ РІСЂРµРјСЏ, Р° С‚Р°РєР¶Рµ СЂРµР·РµСЂРІ.
+ */
 class NetworkNode {
 private:
 	vector<Link*>* _in;
@@ -35,8 +39,8 @@ private:
 	double _Te;
 	double _Tl;
 	double _R;
-	// Номер вершины. Первоначально используется при чтении из файла
-	// и построении сети, а затеи при нумерации узлов.
+	// РќРѕРјРµСЂ РІРµСЂС€РёРЅС‹. РџРµСЂРІРѕРЅР°С‡Р°Р»СЊРЅРѕ РёСЃРїРѕР»СЊР·СѓРµС‚СЃСЏ РїСЂРё С‡С‚РµРЅРёРё РёР· С„Р°Р№Р»Р°
+	// Рё РїРѕСЃС‚СЂРѕРµРЅРёРё СЃРµС‚Рё, Р° Р·Р°С‚РµРё РїСЂРё РЅСѓРјРµСЂР°С†РёРё СѓР·Р»РѕРІ.
 	int _number;
 
 	void defaultConstructor();
@@ -70,10 +74,14 @@ public:
 	string getDescription();
 };
 
-// Сетевой график. Представляет собой сеть связанных узлов.
+/**
+ * РЎРµС‚РµРІРѕР№ РіСЂР°С„РёРє. РџСЂРµРґСЃС‚Р°РІР»СЏРµС‚ СЃРѕР±РѕР№ СЃРµС‚СЊ СЃРІСЏР·Р°РЅРЅС‹С… СѓР·Р»РѕРІ.\
+ */
 class NetworkPlan {
-	// Вспомогательный класс для хранения работы, которая
-	// направлена к узлу с номером num и имеет длину len.
+	/**
+	 * Р’СЃРїРѕРјРѕРіР°С‚РµР»СЊРЅС‹Р№ РєР»Р°СЃСЃ РґР»СЏ С…СЂР°РЅРµРЅРёСЏ СЂР°Р±РѕС‚С‹, РєРѕС‚РѕСЂР°СЏ
+	 * РЅР°РїСЂР°РІР»РµРЅР° Рє СѓР·Р»Сѓ СЃ РЅРѕРјРµСЂРѕРј num Рё РёРјРµРµС‚ РґР»РёРЅСѓ len.
+	 */
 	class NumLen {
 	public:
 		int num;
@@ -85,14 +93,16 @@ class NetworkPlan {
 		}
 	};
 
-	// Вспомогательный класс для хранения данных из строки описания
-	// узла, считанной из файла.
+	/**
+	 * Р’СЃРїРѕРјРѕРіР°С‚РµР»СЊРЅС‹Р№ РєР»Р°СЃСЃ РґР»СЏ С…СЂР°РЅРµРЅРёСЏ РґР°РЅРЅС‹С… РёР· СЃС‚СЂРѕРєРё РѕРїРёСЃР°РЅРёСЏ
+	 * СѓР·Р»Р°, СЃС‡РёС‚Р°РЅРЅРѕР№ РёР· С„Р°Р№Р»Р°.
+	 */
 	class NodeInfo {
 	public:
 		NetworkNode* n;
-		vector<NumLen*> outLinks;
+		vector<NumLen> outLinks;
 
-		NodeInfo(NetworkNode* n, vector<NumLen*> outLinks) {
+		NodeInfo(NetworkNode* n, vector<NumLen> outLinks) {
 			this->n = n;
 			this->outLinks = outLinks;
 		}
@@ -109,11 +119,18 @@ class NetworkPlan {
 	vector<vector<NetworkNode*>*>* _layers;
 	vector<vector<NetworkNode*>*>* _critPaths;
 
+	bool parse(vector<char*> lines, vector<NodeInfo> &nodes);
+	bool buildModel(vector<NodeInfo> nodes);
+	void createModel(vector<char*> lines);
+
 	void extractLayers();
 	void numberNodes();
 	void findCriticalPaths(NetworkNode* cur);
 
 public:
+	/**
+	 * РћР±С‰РёР№ РєР»Р°СЃСЃ РёСЃРєР»СЋС‡РµРЅРёР№.
+	 */
 	class Exception {
 	protected:
 		string _msg;
@@ -125,27 +142,36 @@ public:
 		string getMessage() { return _msg; }
 	};
 
+	/**
+	 * РљР»Р°СЃСЃ РёСЃРєР»СЋС‡РµРЅРёР№ РґР»СЏ СЃРµС‚Рё.
+	 */
 	class NetworkException : public Exception {
 	public:
 		NetworkException(const char* msg) : Exception(msg) { };
 	};
 
-	class LoadException : public Exception {
-	public:
-		LoadException(const char* msg) : Exception(msg) { };
-	};
-
+	/**
+	 * РљР»Р°СЃСЃ РёСЃРєР»СЋС‡РµРЅРёР№ РґР»СЏ РЅРµРІРµСЂРЅРѕ Р·Р°РґР°РЅРЅС‹С… Р°СЂРіСѓРјРµРЅС‚РѕРІ.
+	 */
 	class ArgumentException : public Exception {
 	public:
 		ArgumentException(const char* msg) : Exception(msg) { };
 	};
 
-	NetworkPlan(const char* inputFile);
+	NetworkPlan(const char* input, bool isFile = true);
 	~NetworkPlan();
 
+	void createModelFromFile(const char* input);
+	void createModelFromString(const char* input);
+
+	// Р Р°СЃСЃС‡РёС‚Р°С‚СЊ СЂРµР·СѓР»СЊС‚Р°С‚С‹.
 	void calculate();
+	// РџРѕР»СѓС‡РёС‚СЊ РєСЂРёС‚РёС‡РµСЃРєРѕРµ РІСЂРµРјСЏ.
 	double getTCritical() { return _Tcrit; }
+	// РџРѕР»СѓС‡РёС‚СЊ СЃС‚Р°СЂС‚РѕРІСѓСЋ РІРµСЂС€РёРЅСѓ.
 	const NetworkNode* getS() { return _S; }
+	// РџРѕР»СѓС‡РёС‚СЊ С„РёРЅРёС€РЅСѓСЋ РІРµСЂС€РёРЅСѓ.
 	const NetworkNode* getF() { return _F; }
+	// РџРѕР»СѓС‡РёС‚СЊ РєСЂРёС‚РёС‡РµСЃРєРёРµ РїСѓС‚Рё (РјР°СЃСЃРёРІ РјР°СЃСЃРёРІРѕРІ).
 	const vector<vector<NetworkNode*>*>* getCriticalPaths() { return _critPaths; }
 };

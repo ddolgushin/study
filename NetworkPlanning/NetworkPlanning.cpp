@@ -11,6 +11,425 @@
 
 #include "NetworkPlanning.h"
 
+
+NetworkPlan::NetworkPlan(const char* input, bool isFile) {
+	if (isFile)
+		createModelFromFile(input);
+	else
+		createModelFromString(input);
+}
+
+NetworkPlan::~NetworkPlan() {
+	_layers->clear();
+	_critPaths->clear();
+
+	delete _layers;
+	delete _critPaths;
+}
+
+bool NetworkPlan::parse(vector<char*> lines, vector<NodeInfo>& nodes) {
+	const int bufSize = 128;
+	char* chBuf = new char[bufSize];
+	vector<NumLen> outLinks;
+	vector<string> tokens;
+	
+	_Tcrit = 0;
+	_layers = new vector<vector<NetworkNode*>*>();
+	_critPaths = new vector<vector<NetworkNode*>*>();
+
+	// Р”РѕР±Р°РІР»СЏРµРј РІРµРєС‚РѕСЂ РґР»СЏ РїРµСЂРІРѕРіРѕ РєСЂРёС‚РёС‡РµСЃРєРѕРіРѕ РїСѓС‚Рё.
+	_critPaths->push_back(new vector<NetworkNode*>());
+
+	int size = lines.size();
+
+	// РЎС‡РёС‚С‹РІР°РЅРёРµ РѕРїРёСЃР°РЅРёСЏ СЃРµС‚Рё~
+	for (int i = 0; i < size; i++) {
+		istringstream* iss = new istringstream(lines.at(i));
+
+		copy(istream_iterator<string>(*iss),
+			istream_iterator<string>(),
+			back_inserter<vector<string>>(tokens));
+		outLinks.clear();
+
+		delete iss;
+		
+		int tmpNum = 0;
+
+		for (unsigned int i = 0; i < tokens.size(); i++) {
+			int tmpNum2 = 0;
+			int j = 0;
+			double tmpLength = 0;
+	
+			if (i == 0)
+				tmpNum = atoi(tokens.at(i).c_str());
+			else {
+				iss = new istringstream(tokens.at(i));
+				j = 0;
+
+				while (iss->getline(chBuf, bufSize, ',')) {
+					string* strBuf = new string(chBuf);
+
+					if (j++ == 0)
+						tmpNum2 = atoi(strBuf->substr(1, strBuf->length() - 1).c_str());
+					else
+						tmpLength = atof(strBuf->substr(0, strBuf->length() - 1).c_str());
+					
+					delete strBuf;
+				}
+
+				delete iss;
+
+				outLinks.push_back(NumLen(tmpNum2, tmpLength));
+			}
+		}
+
+		nodes.push_back(NodeInfo(new NetworkNode(tmpNum), outLinks));
+
+		tokens.clear();
+	}
+
+	//~
+
+	delete[] chBuf;
+
+	return true;
+}
+
+bool NetworkPlan::buildModel(vector<NodeInfo> nodes) {
+	// РЈСЃС‚Р°РЅРѕРІРєР° СѓРєР°Р·Р°С‚РµР»РµР№ РЅР° РЅР°С‡Р°Р»СЊРЅСѓСЋ Рё РєРѕРЅРµС‡РЅСѓСЋ РІРµСЂС€РёРЅС‹.
+	_S = nodes.at(0).n;
+	_F = nodes.at(nodes.size() - 1).n;
+
+	// РџРѕСЃС‚СЂРѕРµРЅРёРµ СЃРµС‚Рё РїРѕ СЃС‡РёС‚Р°РЅРЅРѕР№ РёРЅС„РѕСЂРјР°С†РёРё.
+	_total = nodes.size();
+
+	for (int i = 0; i < _total; i++) {
+		NodeInfo* inf = &nodes.at(i);
+		NetworkNode* cur = inf->n;
+		int size = inf->outLinks.size();
+
+		// РџСЂРѕС…РѕРґРёРј РїРѕ РёСЃС…РѕРґСЏС‰РёРј РЅРѕРјРµСЂР°Рј, РёС‰РµРј СЃРѕРІРїР°РґР°СЋС‰РёРµ
+		// СѓР·Р»С‹ Рё СЃРѕР·РґР°С‘Рј РґР»СЏ РЅРёС… СЃСЃС‹Р»РєРё-СЂР°Р±РѕС‚С‹. РџРѕРїСѓС‚РЅРѕ РїСЂРѕРІРµСЂСЏРµРј
+		// РЅР°Р»РёС‡РёРµ СЃСЃС‹Р»РѕРє СѓР·Р»РѕРІ РЅР° СЃР°РјРёС… СЃРµР±СЏ.
+		for (int j = 0; j < size; j++) {
+			for (int k = 0; k < _total; k++) {
+				NodeInfo* tmpInf = &nodes.at(k);
+
+				if (inf->outLinks.at(j).num == tmpInf->n->getNumber()) {
+					if (tmpInf->n->getNumber() == inf->n->getNumber())
+						throw NetworkException("РћС€РёР±РєР° РёСЃС…РѕРґРЅС‹С… РґР°РЅРЅС‹С…:"
+							" РЅРµРґРѕРїСѓСЃС‚РёРјС‹ СЃСЃС‹Р»РєРё РІРµСЂС€РёРЅ РЅР° СЃР°РјРёС… СЃРµР±СЏ");
+					else
+						cur->addOutgoingNode(tmpInf->n, inf->outLinks.at(j).len);
+				}
+			}
+		}
+	}
+
+	extractLayers();
+	numberNodes();
+
+	return true;
+}
+
+void NetworkPlan::createModel(vector<char*> lines) {
+	vector<NodeInfo> nodes;
+
+	if (parse(lines, nodes)) {
+		buildModel(nodes);
+		calculate();
+	}
+}
+
+void NetworkPlan::createModelFromString(const char* input) {
+	if (input == NULL || strlen(input) == 0)
+		throw ArgumentException("РќРµ СѓРєР°Р·Р°РЅ С„Р°Р№Р» РґР°РЅРЅС‹С…");
+
+	vector<char*> lines;
+	istringstream* iss = new istringstream(input);
+	const int bufSize = 128;
+	char* chBuf = new char[bufSize];
+
+	// РЎС‡РёС‚С‹РІР°РµРј РІС…РѕРґРЅСѓСЋ СЃС‚СЂРѕРєСѓ С‡Р°СЃС‚СЏРјРё, СЃ СЂР°Р·Р±РёРµРЅРёРµРј РїРѕ СЃРёРјРІРѕР»Сѓ РїРµСЂРµРЅРѕСЃР° СЃС‚СЂРѕРєРё,
+	// Рё Р·Р°РїРѕР»РЅСЏРµРј РјР°СЃСЃРёРІ СЃС‚СЂРѕРє.
+	while (iss->getline(chBuf, bufSize)) {
+		lines.push_back(chBuf);
+
+		chBuf = new char[bufSize];
+	}
+
+	delete chBuf;
+
+	// Р¤РѕСЂРјРёСЂСѓРµРј РјРѕРґРµР»СЊ.
+	createModel(lines);
+	
+	int size = lines.size();
+
+	// РЈРґР°Р»СЏРµРј РЅРµРЅСѓР¶РЅС‹Рµ Р±РѕР»РµРµ СЃС‚СЂРѕРєРё.
+	for (int i = 0; i < size; i++)
+		delete lines.at(i);
+}
+
+void NetworkPlan::createModelFromFile(const char* input) {
+	if (input == NULL)
+		throw ArgumentException("РќРµРѕР±С…РѕРґРёРјРѕ СѓРєР°Р·Р°С‚СЊ РёРјСЏ С„Р°Р№Р»Р° СЃ РёСЃС…РѕРґРЅС‹РјРё РґР°РЅРЅС‹РјРё");
+
+	ifstream infile(input);
+
+	if (!infile)
+		throw Exception("РќРµ СѓРґР°Р»РѕСЃСЊ РѕС‚РєСЂС‹С‚СЊ С„Р°Р№Р» РёСЃС…РѕРґРЅС‹С… РґР°РЅРЅС‹С…");
+
+	const int bufSize = 128;
+	char* chBuf = new char[bufSize];
+	vector<char*> lines;
+
+	// РЎС‡РёС‚С‹РІР°РµРј РІС…РѕРґРЅРѕР№ С„Р°Р№Р» РїРѕСЃС‚СЂРѕС‡РЅРѕ. Р—Р°РїРѕР»РЅСЏРµРј РјР°СЃСЃРёРІ СЃС‚СЂРѕРє.
+	while (infile.getline(chBuf, bufSize)) {
+		lines.push_back(chBuf);
+
+		chBuf = new char[bufSize];
+	}
+
+	delete chBuf;
+
+	infile.close();
+	// РЎРѕР·РґР°С‘Рј РјРѕРґРµР»СЊ.
+	createModel(lines);
+
+	int size = lines.size();
+
+	// РЈРґР°Р»СЏРµРј РЅРµРЅСѓР¶РЅС‹Рµ Р±РѕР»РµРµ СЃС‚СЂРѕРєРё.
+	for (int i = 0; i < size; i++)
+		delete lines.at(i);
+}
+
+void NetworkPlan::extractLayers() {
+	int size = 0;
+	int size2 = 0;
+	int size3 = 0;
+	vector<NetworkNode*>* curLayer = new vector<NetworkNode*>();
+	vector<NetworkNode*>* nextLayer = NULL;
+	NetworkNode* tmpNode = NULL;
+	NetworkNode* tmpNode2 = NULL;
+	bool noMoreIncoming = false;
+	bool isFirst = true;
+	bool finishAdded = false;
+
+	while (true) {
+		if (isFirst) {
+			curLayer->push_back(_S);
+			_layers->push_back(curLayer);
+
+			isFirst = false;
+		} else if (finishAdded) break;
+
+		nextLayer = new vector<NetworkNode*>(); 
+		size = curLayer->size();
+
+		// РСЃРєР»СЋС‡Р°РµРј РёСЃС…РѕРґСЏС‰РёРµ СЃСЃС‹Р»РєРё РёР· СѓР·Р»РѕРІ С‚РµРєСѓС‰РµРіРѕ СЃР»РѕСЏ.
+		for (int j = 0; j < size; j++) {
+			tmpNode = curLayer->at(j);
+			size2 = tmpNode->getOutgoingLinks()->size();
+
+			for (int k = 0; k < size2; k++) {
+				tmpNode->getOutgoingLinks()->at(k)->excluded = true;
+			}
+		}
+
+		// РџСЂРѕРІРµСЂСЏРµРј, РµСЃС‚СЊ Р»Рё РґСЂСѓРіРёРµ РІС…РѕРґСЏС‰РёРµ СЂР°Р±РѕС‚С‹ РґР»СЏ СѓР·Р»РѕРІ,
+		// СЏРІР»СЏСЋС‰РёС…СЃСЏ СЃР»РµРґСѓСЋС‰РёРјРё РґР»СЏ СѓР·Р»РѕРІ С‚РµРєСѓС‰РµРіРѕ СЃР»РѕСЏ.
+		for (int j = 0; j < size; j++) {
+			tmpNode = curLayer->at(j);
+			size2 = tmpNode->getOutgoingLinks()->size();
+
+			for (int k = 0; k < size2; k++) {
+				tmpNode2 = tmpNode->getOutgoingLinks()->at(k)->dst;
+				size3 = tmpNode2->getIncomingLinks()->size();
+				noMoreIncoming = true;
+
+				for (int l = 0; l < size3; l++) {
+					if (tmpNode2->getIncomingLinks()->at(l)->excluded != true) {
+						noMoreIncoming = false;
+
+						break;
+					}
+				}
+
+				// Р•СЃР»Рё РґР»СЏ СѓР·Р»Р° РЅРµС‚ СЂР°Р±РѕС‚, РЅРµ РѕС‚РјРµС‡РµРЅРЅС‹С… РєР°Рє РёСЃРєР»СЋС‡С‘РЅРЅС‹Рµ,
+				// Рё РѕРЅ РЅРµ РґРѕР±Р°РІР»РµРЅ РІ СЃР»РµРґСѓСЋС‰РёР№ СЃР»РѕР№, РґРѕР±Р°РІР»СЏРµРј.
+				if (noMoreIncoming
+					&& find(nextLayer->begin(), nextLayer->end(), tmpNode2) == nextLayer->end()) {
+						nextLayer->push_back(tmpNode2);
+
+						if (tmpNode2 == _F) finishAdded = true;
+				}
+			}
+		}
+
+		_layers->push_back(nextLayer);
+
+		curLayer = nextLayer;
+	}
+}
+
+void NetworkPlan::numberNodes() {
+	int size = 0;
+	int size2 = 0;
+	int number = 0;
+
+	if (_layers != NULL && _layers->size() > 0) {
+		size = _layers->size();
+
+		for (int i = 0; i < size; i++) {
+			size2 = _layers->at(i)->size();
+
+			for (int j = 0; j < size2; j++) {
+				_layers->at(i)->at(j)->setNumber(number++);
+			}
+		}
+	}
+}
+
+void NetworkPlan::findCriticalPaths(NetworkNode* cur) {
+	// РЎС‚Р°С‚РёС‡РµСЃРєР°СЏ РїРµСЂРµРјРµРЅРЅР°СЏ, РёРЅРёС†РёР°Р»РёР·РёСЂСѓРµС‚СЃСЏ РїСЂРё РїРµСЂРІРѕРј РІС‹Р·РѕРІРµ С„СѓРЅРєС†РёРё.
+	// РЇРІР»СЏРµС‚СЃСЏ СЃС‡С‘С‚С‡РёРєРѕРј РїСѓС‚РµР№.
+	static int pathNum = 0;
+	bool isFirst = true;
+	NetworkNode* tmpNode = NULL;
+	const vector<NetworkNode*>* nodes = cur->getOutgoingNodes();
+	vector<NetworkNode*>::iterator itr;
+	vector<NetworkNode*>::iterator itr2;
+	int size = nodes->size();
+
+	_critPaths->at(pathNum)->push_back(cur);
+
+	for (int i = 0; i < size; i++) {
+		tmpNode = nodes->at(i);
+
+		if (tmpNode->getReserve() == 0) {
+			if (isFirst) {
+				findCriticalPaths(tmpNode);
+
+				isFirst = false;
+			} else {
+				_critPaths->push_back(new vector<NetworkNode*>());
+
+				// РџРѕР»СѓС‡Р°РµРј РёС‚РµСЂР°С‚РѕСЂ РЅР° РЅР°С‡Р°Р»Рѕ С‚РµРєСѓС‰РµРіРѕ РїСѓС‚Рё.
+				itr = _critPaths->at(pathNum)->begin();
+				// РќР°С…РѕРґРёРј РІ РїСѓС‚Рё С‚РµРєСѓС‰РёР№ СѓР·РµР»...
+				itr2 = find(itr, _critPaths->at(pathNum)->end(), cur);
+
+				// ... Рё РєРѕРїРёСЂСѓРµРј РІРµСЂС€РёРЅС‹ РІ РЅРѕРІС‹Р№ РїСѓС‚СЊ РґСѓР±Р»РёСЂСѓСЋС‰СѓСЋСЃСЏ С‡Р°СЃС‚СЊ.
+				while (itr++ != (itr2 + 1)) {
+					_critPaths->at(pathNum + 1)->push_back(*(itr - 1));
+				}
+
+				pathNum++;
+
+				findCriticalPaths(tmpNode);
+			}
+		}
+	}
+}
+
+void NetworkPlan::calculate() {
+	int size = _layers->size();
+	int size2 = 0;
+	int size3 = 0;
+	double tmpD = 0;
+	double max = 0;
+	double min = 0;
+	NetworkNode* tmpNode = NULL;
+	NetworkNode* tmpNode2 = NULL;
+	const vector<Link*>* tmpVec = NULL;
+
+	// Р’С‹С‡РёСЃР»РµРЅРёРµ СЂР°РЅРЅРµРіРѕ РІСЂРµРјРµРЅРё.
+	// Р”РІРёР¶РµРЅРёРµ РїРѕ СЃР»РѕСЏРј РІ РїСЂСЏРјРѕРј РїРѕСЂСЏРґРєРµ, РѕС‚ СЃС‚Р°СЂС‚РѕРІРѕР№ РІРµСЂС€РёРЅС‹ РґРѕ С„РёРЅРёС€РЅРѕР№.
+	// РќСѓР»РµРІРѕР№ СЃР»РѕР№ (СЃС‚Р°СЂС‚РѕРІРѕРµ СЃРѕСЃС‚РѕСЏРЅРёРµ) РјРѕР¶РЅРѕ РЅРµ СѓС‡РёС‚С‹РІР°С‚СЊ.
+	for (int i = 1; i < size; i++) {
+		size2 = _layers->at(i)->size();
+
+		for (int j = 0; j < size2; j++) {
+			// РџРѕР»СѓС‡Р°РµРј РІС…РѕРґСЏС‰РёРµ СЂР°Р±РѕС‚С‹ РґР»СЏ С‚РµРєСѓС‰РµР№ РІРµСЂС€РёРЅС‹ СЃР»РѕСЏ.
+			tmpVec = _layers->at(i)->at(j)->getIncomingLinks();
+			size3 = tmpVec->size();
+			max = 0;
+
+			// РЎСЂРµРґРё РІС…РѕРґСЏС‰РёС… СЂР°Р±РѕС‚ РёС‰РµРј РѕРґРЅСѓ, РїСЂРѕС…РѕРґ РїРѕ РєРѕС‚РѕСЂРѕР№ СЃРѕРѕС‚РІРµС‚СЃС‚РІСѓРµС‚
+			// РјР°РєСЃРёРјР°Р»СЊРЅРѕРјСѓ РїСѓС‚Рё.
+			if (size3 > 0) {
+				max = (tmpVec->at(0)->src != NULL)
+					? tmpVec->at(0)->src->getTEarliest()
+					: 0;
+				max += tmpVec->at(0)->length;
+
+				for (int k = 1; k < size3; k++) {
+					// Р•СЃР»Рё РµСЃС‚СЊ РїСЂРµРґС€РµСЃС‚РІСѓСЋС‰Р°СЏ РІРµСЂС€РёРЅР°, СЂР°РЅРЅРµРµ РІСЂРµРјСЏ
+					// СЂР°СЃСЃС‡РёС‚С‹РІР°РµС‚СЃСЏ РєР°Рє СЃСѓРјРјР° РµС‘ СЂР°РЅРЅРµРіРѕ РІСЂРµРјРµРЅРё Рё РґР»РёРЅС‹ СЂР°Р±РѕС‚С‹.
+					// РРЅР°С‡Рµ СЂР°РЅРЅРµРµ РІСЂРµРјСЏ СЃРѕРѕС‚РІРµС‚СЃС‚РІСѓРµС‚ С‚РѕР»СЊРєРѕ РґР»РёРЅРµ СЂР°Р±РѕС‚С‹.
+					tmpD = (tmpVec->at(k)->src != NULL)
+						? tmpVec->at(k)->src->getTEarliest()
+						: 0;
+					tmpD += tmpVec->at(k)->length;
+
+					if (tmpD > max)
+						max = tmpD;
+				}
+			}
+
+			_layers->at(i)->at(j)->setTEarliest(max);
+		}
+	}
+
+	_F->setTLatest(_F->getTEarliest());
+	_F->setReserve(0);
+
+	// Р’С‹С‡РёСЃР»РµРЅРёРµ РїРѕР·РґРЅРµРіРѕ РІСЂРµРјРµРЅРё.
+	// Р”РІРёР¶РµРЅРёРµ РїРѕ СЃР»РѕСЏРј РІ РѕР±СЂР°С‚РЅРѕРј РїРѕСЂСЏРґРєРµ, РѕС‚ С„РёРЅРёС€РЅРѕР№ РІРµСЂС€РёРЅС‹ РґРѕ СЃС‚Р°СЂС‚РѕРІРѕР№.
+	for (int i = size - 2; i >= 0; i--) {
+		size2 = _layers->at(i)->size();
+
+		for (int j = 0; j < size2; j++) {
+			tmpNode2 = _layers->at(i)->at(j);
+			tmpVec = tmpNode2->getOutgoingLinks();
+			size3 = tmpVec->size();
+
+			if (size3 > 0) {
+				min = tmpVec->at(0)->dst->getTLatest() - tmpVec->at(0)->length;
+
+				// РџРѕ РёСЃС…РѕРґСЏС‰РёРј СЂР°Р±РѕС‚Р°Рј РѕРїСЂРµРґРµР»СЏРµРј РїРѕР·РґРЅРµРµ РІСЂРµРјСЏ.
+				for (int k = 1; k < size3; k++) {
+					tmpNode = tmpVec->at(k)->dst;
+					tmpD = tmpVec->at(k)->dst->getTLatest() - tmpVec->at(k)->length;
+
+					if (tmpD < min) min = tmpD;
+				}
+
+				tmpNode2->setTLatest(min);
+				tmpNode2->setReserve(min - tmpNode2->getTEarliest());
+			}
+		}
+	}
+
+	_S->setTEarliest(0);
+	_S->setTLatest(0);
+	_S->setReserve(0);
+
+	_Tcrit = _F->getTLatest();
+
+	findCriticalPaths(_S);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+NetworkNode::~NetworkNode() {
+	_in->clear();
+	_out->clear();
+
+	delete _in;
+	delete _out;
+}
+
 void NetworkNode::defaultConstructor() {
 	_Te = 0;
 	_Tl = 0;
@@ -68,14 +487,6 @@ NetworkNode::NetworkNode(int number) {
 	_number = number;
 }
 
-NetworkNode::~NetworkNode() {
-	_in->clear();
-	_out->clear();
-
-	delete _in;
-	delete _out;
-}
-
 void NetworkNode::setTEarliest(double v) { _Te = v; }
 void NetworkNode::setTLatest(double v) { _Tl = v; }
 void NetworkNode::setReserve(double v) { _R = v; }
@@ -110,9 +521,9 @@ void NetworkNode::addOutgoingNode(NetworkNode* node, double lengthTo) {
 string NetworkNode::getDescription() {
 	string res;
 
-	res.append("Текущий: " + toString() + "\n");
-	res.append(nodeListToString("Входящие", getIncomingNodes()));
-	res.append(nodeListToString("Исходящие", getOutgoingNodes()));
+	res.append("РўРµРєСѓС‰РёР№: " + toString() + "\n");
+	res.append(nodeListToString("Р’С…РѕРґСЏС‰РёРµ", getIncomingNodes()));
+	res.append(nodeListToString("РСЃС…РѕРґСЏС‰РёРµ", getOutgoingNodes()));
 
 	return res;
 }
@@ -128,343 +539,4 @@ string NetworkNode::toString() {
 	res.append(osstr1.str() + " (" + osstr2.str() + ")");
 
 	return res;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void NetworkPlan::extractLayers() {
-	int size = 0;
-	int size2 = 0;
-	int size3 = 0;
-	vector<NetworkNode*>* curLayer = new vector<NetworkNode*>();
-	vector<NetworkNode*>* nextLayer = NULL;
-	NetworkNode* tmpNode = NULL;
-	NetworkNode* tmpNode2 = NULL;
-	bool noMoreIncoming = false;
-	bool isFirst = true;
-	bool finishAdded = false;
-
-	while (true) {
-		if (isFirst) {
-			curLayer->push_back(_S);
-			_layers->push_back(curLayer);
-
-			isFirst = false;
-		} else if (finishAdded) break;
-
-		nextLayer = new vector<NetworkNode*>(); 
-		size = curLayer->size();
-
-		// Исключаем исходящие ссылки из узлов текущего слоя.
-		for (int j = 0; j < size; j++) {
-			tmpNode = curLayer->at(j);
-			size2 = tmpNode->getOutgoingLinks()->size();
-
-			for (int k = 0; k < size2; k++) {
-				tmpNode->getOutgoingLinks()->at(k)->excluded = true;
-			}
-		}
-
-		// Проверяем, есть ли другие входящие работы для узлов,
-		// являющихся следующими для узлов текущего слоя.
-		for (int j = 0; j < size; j++) {
-			tmpNode = curLayer->at(j);
-			size2 = tmpNode->getOutgoingLinks()->size();
-
-			for (int k = 0; k < size2; k++) {
-				tmpNode2 = tmpNode->getOutgoingLinks()->at(k)->dst;
-				size3 = tmpNode2->getIncomingLinks()->size();
-				noMoreIncoming = true;
-
-				for (int l = 0; l < size3; l++) {
-					if (tmpNode2->getIncomingLinks()->at(l)->excluded != true) {
-						noMoreIncoming = false;
-
-						break;
-					}
-				}
-
-				// Если для узла нет работ, не отмеченных как исключённые,
-				// и он не добавлен в следующий слой, добавляем.
-				if (noMoreIncoming
-					&& find(nextLayer->begin(), nextLayer->end(), tmpNode2) == nextLayer->end()) {
-						nextLayer->push_back(tmpNode2);
-
-						if (tmpNode2 == _F) finishAdded = true;
-				}
-			}
-		}
-
-		_layers->push_back(nextLayer);
-
-		curLayer = nextLayer;
-	}
-}
-
-void NetworkPlan::numberNodes() {
-	int size = 0;
-	int size2 = 0;
-	int number = 0;
-
-	if (_layers != NULL && _layers->size() > 0) {
-		size = _layers->size();
-
-		for (int i = 0; i < size; i++) {
-			size2 = _layers->at(i)->size();
-
-			for (int j = 0; j < size2; j++) {
-				_layers->at(i)->at(j)->setNumber(number++);
-			}
-		}
-	}
-}
-
-void NetworkPlan::findCriticalPaths(NetworkNode* cur) {
-	// Статическая переменная, инициализируется при первом вызове функции.
-	// Является счётчиком путей.
-	static int pathNum = 0;
-	bool isFirst = true;
-	NetworkNode* tmpNode = NULL;
-	const vector<NetworkNode*>* nodes = cur->getOutgoingNodes();
-	vector<NetworkNode*>::iterator itr;
-	vector<NetworkNode*>::iterator itr2;
-	int size = nodes->size();
-
-	_critPaths->at(pathNum)->push_back(cur);
-
-	for (int i = 0; i < size; i++) {
-		tmpNode = nodes->at(i);
-
-		if (tmpNode->getReserve() == 0) {
-			if (isFirst) {
-				findCriticalPaths(tmpNode);
-
-				isFirst = false;
-			} else {
-				_critPaths->push_back(new vector<NetworkNode*>());
-
-				// Получаем итератор на начало текущего пути.
-				itr = _critPaths->at(pathNum)->begin();
-				// Находим в пути текущий узел...
-				itr2 = find(itr, _critPaths->at(pathNum)->end(), cur);
-
-				// ... и копируем вершины в новый путь дублирующуюся часть.
-				while (itr++ != (itr2 + 1)) {
-					_critPaths->at(pathNum + 1)->push_back(*(itr - 1));
-				}
-
-				pathNum++;
-
-				findCriticalPaths(tmpNode);
-			}
-		}
-	}
-}
-
-NetworkPlan::NetworkPlan(const char* inputFile) {
-	ifstream infile(inputFile);
-	istringstream* iss = NULL;
-	string* strBuf = NULL;
-	int size = 0;
-	const int bufSize = 128;
-	char* chBuf = new char[bufSize];
-	int tmpNum = 0;
-	int tmpNum2 = 0;
-	int j = 0;
-	double tmpLength = 0;
-	vector<NodeInfo*> input;
-	vector<NumLen*> outLinks;
-	vector<int> lengths;
-	vector<string> tokens;
-	NetworkNode* cur = NULL;
-	NodeInfo* inf = NULL;
-	NodeInfo* tmpInf = NULL;
-
-	if (inputFile == NULL) {
-		throw LoadException("Необходимо указать имя файла с исходными данными");
-	} else if (!infile) {
-		throw ArgumentException("Не удалось открыть файл исходных данных");
-	} else {
-		_Tcrit = 0;
-		_layers = new vector<vector<NetworkNode*>*>();
-		_critPaths = new vector<vector<NetworkNode*>*>();
-
-		// Добавляем вектор для первого критического пути.
-		_critPaths->push_back(new vector<NetworkNode*>());
-
-		// Считывание описания сети~
-		while (infile.getline(chBuf, bufSize)) {
-			iss = new istringstream(chBuf);
-
-			copy(istream_iterator<string>(*iss),
-				istream_iterator<string>(),
-				back_inserter<vector<string>>(tokens));
-			outLinks.clear();
-
-			delete iss;
-
-			for (unsigned int i = 0; i < tokens.size(); i++) {
-				if (i == 0) {
-					tmpNum = atoi(tokens.at(i).c_str());
-				} else {
-					iss = new istringstream(tokens.at(i));
-					j = 0;
-
-					while (iss->getline(chBuf, bufSize, ',')) {
-						strBuf = new string(chBuf);
-
-						if (j++ == 0) {
-							tmpNum2 = atoi(strBuf->substr(1, strBuf->length() - 1).c_str());
-						} else {
-							tmpLength = atof(strBuf->substr(0, strBuf->length() - 1).c_str());
-						}
-
-						delete strBuf;
-					}
-
-					delete iss;
-
-					outLinks.push_back(new NumLen(tmpNum2, tmpLength));
-				}
-			}
-
-			input.push_back(new NodeInfo(new NetworkNode(tmpNum), outLinks));
-
-			tokens.clear();
-		}
-
-		infile.close();
-		//~
-
-		// Установка указателей на начальную и конечную вершины.
-		_S = input.at(0)->n;
-		_F = input.at(input.size() - 1)->n;
-
-		// Построение сети по считанной информации.
-		_total = input.size();
-
-		for (int i = 0; i < _total; i++) {
-			inf = input.at(i);
-			cur = inf->n;
-			size = inf->outLinks.size();
-
-			// Проходим по исходящим номерам, ищем совпадающие
-			// узлы и создаём для них ссылки-работы. Попутно проверяем
-			// наличие ссылок узлов на самих себя.
-			for (int j = 0; j < size; j++) {
-				for (int k = 0; k < _total; k++) {
-					tmpInf = input.at(k);
-
-					if (inf->outLinks.at(j)->num == tmpInf->n->getNumber()) {
-						if (tmpInf->n->getNumber() == inf->n->getNumber()) {
-							throw NetworkException("Ошибка исходных данных:"
-								" недопустимы ссылки вершин на самих себя");
-						} else {
-							cur->addOutgoingNode(tmpInf->n, inf->outLinks.at(j)->len);
-						}
-					}
-				}
-			}
-		}
-
-		extractLayers();
-		numberNodes();
-	}
-
-	delete[] chBuf;
-}
-
-NetworkPlan::~NetworkPlan() {
-	_layers->clear();
-	_critPaths->clear();
-
-	delete _layers;
-	delete _critPaths;
-}
-
-void NetworkPlan::calculate() {
-	int size = _layers->size();
-	int size2 = 0;
-	int size3 = 0;
-	double tmpD = 0;
-	double max = 0;
-	double min = 0;
-	NetworkNode* tmpNode = NULL;
-	NetworkNode* tmpNode2 = NULL;
-	const vector<Link*>* tmpVec = NULL;
-
-	// Вычисление раннего времени.
-	// Движение по слоям в прямом порядке, от стартовой вершины до финишной.
-	// Нулевой слой (стартовое состояние) можно не учитывать.
-	for (int i = 1; i < size; i++) {
-		size2 = _layers->at(i)->size();
-
-		for (int j = 0; j < size2; j++) {
-			// Получаем входящие работы для текущей вершины слоя.
-			tmpVec = _layers->at(i)->at(j)->getIncomingLinks();
-			size3 = tmpVec->size();
-			max = 0;
-
-			// Среди входящих работ ищем одну, проход по которой соответствует
-			// максимальному пути.
-			if (size3 > 0) {
-				max = (tmpVec->at(0)->src != NULL)
-					? tmpVec->at(0)->src->getTEarliest()
-					: 0;
-				max += tmpVec->at(0)->length;
-
-				for (int k = 1; k < size3; k++) {
-					// Если есть предшествующая вершина, раннее время
-					// рассчитывается как сумма её раннего времени и длины работы.
-					// Иначе раннее время соответствует только длине работы.
-					tmpD = (tmpVec->at(k)->src != NULL)
-						? tmpVec->at(k)->src->getTEarliest()
-						: 0;
-					tmpD += tmpVec->at(k)->length;
-
-					if (tmpD > max) max = tmpD;
-				}
-			}
-
-			_layers->at(i)->at(j)->setTEarliest(max);
-		}
-	}
-
-	_F->setTLatest(_F->getTEarliest());
-	_F->setReserve(0);
-
-	// Вычисление позднего времени.
-	// Движение по слоям в обратном порядке, от финишной вершины до стартовой.
-	for (int i = size - 2; i >= 0; i--) {
-		size2 = _layers->at(i)->size();
-
-		for (int j = 0; j < size2; j++) {
-			tmpNode2 = _layers->at(i)->at(j);
-			tmpVec = tmpNode2->getOutgoingLinks();
-			size3 = tmpVec->size();
-
-			if (size3 > 0) {
-				min = tmpVec->at(0)->dst->getTLatest() - tmpVec->at(0)->length;
-
-				// По исходящим работам определяем позднее время.
-				for (int k = 1; k < size3; k++) {
-					tmpNode = tmpVec->at(k)->dst;
-					tmpD = tmpVec->at(k)->dst->getTLatest() - tmpVec->at(k)->length;
-
-					if (tmpD < min) min = tmpD;
-				}
-
-				tmpNode2->setTLatest(min);
-				tmpNode2->setReserve(min - tmpNode2->getTEarliest());
-			}
-		}
-	}
-
-	_S->setTEarliest(0);
-	_S->setTLatest(0);
-	_S->setReserve(0);
-
-	_Tcrit = _F->getTLatest();
-
-	findCriticalPaths(_S);
 }

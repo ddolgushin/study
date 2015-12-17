@@ -23,24 +23,52 @@ void MhaModel::clearModel() {
 		delete _allNodes.at(i);
 }
 
+vector<string> MhaModel::xsplit(string buf) {
+	vector<string> res;
+	int len = buf.length();
+	int pos = 0;
+	bool insidePars = false;
+
+	for (int i = 0; i < len; i++) {
+		if (i == len - 1) // Конец строки.
+			res.push_back(buf.substr(pos + 1, (buf.at(i) == '"' ? i - pos - 1 : i - pos)));
+		else if (!insidePars) {
+			if (buf[i] == ' ' || buf[i] == '\t') {
+				if (i == pos + 1)
+					pos = i;
+				else {
+					res.push_back(buf.substr((pos == 0 ? pos : pos + 1), (pos == 0 ? i - pos : i - pos - 1)));
+
+					pos = i;
+				}
+			}
+			else if (buf[i] == '"') {
+				insidePars = true;
+				pos = i;
+			}
+		} else {
+			if (buf[i] == '"') {
+				res.push_back(buf.substr(pos + 1, i - pos - 1));
+
+				insidePars = false;
+				pos = ++i;
+			}
+		}
+	}
+
+	return res;
+}
+
 bool MhaModel::parse(vector<char*> lines, vector<NodeDescriptor> &nodes) {
 	vector<LinkDescriptor> linkBuf;
 	int size = lines.size();
 	const int bufSize = 128;
 
 	for (int i = 0; i < size; i++) {
-		char* chBuf = lines.at(i);
-		vector<string> tokens;
-		istringstream* iss = new istringstream(chBuf);
+		string buf = lines.at(i);
+		vector<string> tokens = xsplit(buf);
 
-		// Разбиваем строку пробелами (здесь узкое место, названия альтернатив,
-		// содержащие пробелы, будут интерпретироваться неверно.
-		copy(istream_iterator<string>(*iss),
-			istream_iterator<string>(),
-			back_inserter<vector<string>>(tokens));
 		linkBuf.clear();
-
-		delete iss;
 
 		string tmpName;
 		int tmpNum = 0;
@@ -56,12 +84,12 @@ bool MhaModel::parse(vector<char*> lines, vector<NodeDescriptor> &nodes) {
 				tmpName = tokens.at(i);
 			// Связи
 			else {
-				iss = new istringstream(tokens.at(i));
+				istringstream iss(tokens.at(i));
 				int j = 0;
-				string* strBuf = NULL;
+				char* chBuf = new char[bufSize];
 
-				while (iss->getline(chBuf, bufSize, ':')) {
-					strBuf = new string(chBuf);
+				while (iss.getline(chBuf, bufSize, ':')) {
+					string* strBuf = new string(chBuf);
 
 					if (j++ == 0)
 						tmpNum2 = atoi(strBuf->c_str());
@@ -75,7 +103,7 @@ bool MhaModel::parse(vector<char*> lines, vector<NodeDescriptor> &nodes) {
 					delete strBuf;
 				}
 
-				delete iss;
+				delete chBuf;
 
 				linkBuf.push_back(LinkDescriptor(tmpNum2, tmpWeight));
 			}
